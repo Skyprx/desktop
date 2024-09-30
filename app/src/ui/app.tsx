@@ -181,7 +181,7 @@ import { getBoolean, getNumber } from '../lib/local-storage'
 import { RepoRulesBypassConfirmation } from './repository-rules/repo-rules-bypass-confirmation'
 import { IconPreviewDialog } from './octicons/icon-preview-dialog'
 import { accessibilityBannerDismissed } from './banners/accessibilty-settings-banner'
-import { enableDiffCheckMarksAndLinkUnderlines } from '../lib/feature-flag'
+import { isCertificateErrorSuppressedFor } from '../lib/suppress-certificate-error'
 
 const MinuteInMilliseconds = 1000 * 60
 const HourInMilliseconds = MinuteInMilliseconds * 60
@@ -315,6 +315,10 @@ export class App extends React.Component<IAppProps, IAppState> {
     })
 
     ipcRenderer.on('certificate-error', (_, certificate, error, url) => {
+      if (isCertificateErrorSuppressedFor(url)) {
+        return
+      }
+
       this.props.dispatcher.showPopup({
         type: PopupType.UntrustedCertificate,
         certificate,
@@ -402,10 +406,7 @@ export class App extends React.Component<IAppProps, IAppState> {
       }
     }
 
-    if (
-      enableDiffCheckMarksAndLinkUnderlines() &&
-      getBoolean(accessibilityBannerDismissed) !== true
-    ) {
+    if (getBoolean(accessibilityBannerDismissed) !== true) {
       this.setBanner({
         type: BannerType.AccessibilitySettingsBanner,
         onOpenAccessibilitySettings: this.onOpenAccessibilitySettings,
@@ -1642,18 +1643,12 @@ export class App extends React.Component<IAppProps, IAppState> {
 
     switch (popup.type) {
       case PopupType.RenameBranch:
-        const stash =
-          this.state.selectedState !== null &&
-          this.state.selectedState.type === SelectionType.Repository
-            ? this.state.selectedState.state.changesState.stashEntry
-            : null
         return (
           <RenameBranch
             key="rename-branch"
             dispatcher={this.props.dispatcher}
             repository={popup.repository}
             branch={popup.branch}
-            stash={stash}
             onDismissed={onPopupDismissedFn}
           />
         )
